@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+
+def aroon_indicator(high, low, period=14):
+    days_since_high = []
+    days_since_low = []
+
+    high_rolling_max = high.rolling(period).max()
+    low_rolling_min = low.rolling(period).min()
+
+    for i in range(len(high)):
+        where_high = np.where(high_rolling_max == high[i])[0]
+        if where_high.size > 0:
+            days_since_high.append(where_high[-1] + 1)
+        else:
+            days_since_high.append(0)
+
+        where_low = np.where(low_rolling_min == low[i])[0]
+        if where_low.size > 0:
+            days_since_low.append(where_low[-1] + 1)
+        else:
+            days_since_low.append(0)
+
+    aroon_up = ((period - np.array(days_since_high)) / period) * 100
+    aroon_down = ((period - np.array(days_since_low)) / period) * 100
+
+    aroon_df = pd.DataFrame({
+        'Aroon Up': aroon_up,
+        'Aroon Down': aroon_down
+    }, index=np.arange(len(high)))
+
+    return aroon_df
+
+# Add your other functions here
+
+def average_high_low(high_prices, low_prices, period):
+    avg_high = high_prices.rolling(period).mean()
+    avg_low = low_prices.rolling(period).mean()
+    diff = avg_high - avg_low
+    result = pd.DataFrame({
+        'Average High': avg_high,
+        'Average Low': avg_low,
+        'Difference': diff
+    })
+    return result
+
+def vortex_indicator(high_prices, low_prices, close_prices, period=14):
+    true_range = np.maximum(high_prices - low_prices, np.maximum(high_prices - close_prices, low_prices - close_prices))
+    vm_plus = np.abs(high_prices - low_prices.rolling(period).min())
+    vm_minus = np.abs(low_prices - high_prices.rolling(period).max())
+    sum_trn = true_range.rolling(period).sum()
+    sum_vm_plus = vm_plus.rolling(period).sum()
+    sum_vm_minus = vm_minus.rolling(period).sum()
+    vi_plus = sum_vm_plus / sum_trn
+    vi_minus = sum_vm_minus / sum_trn
+    result = pd.DataFrame({
+        'VI+': vi_plus,
+        'VI-': vi_minus
+    })
+    return result
+
+def bull_bear_power(high_prices, low_prices, close_prices, period=14):
+    ema = close_prices.ewm(span=period, adjust=False).mean()
+    bull_power = high_prices - ema
+    bear_power = ema - low_prices
+    bbp = bull_power + bear_power
+    result = pd.DataFrame({
+        'Bull Power': bull_power,
+        'Bear Power': bear_power,
+        'Bull Bear Power': bbp
+    })
+    return result
+
+def dmi(high_prices, low_prices, close_prices, period=14):
+    up_move = high_prices - high_prices.shift(1)
+    down_move = low_prices.shift(1) - low_prices
+    dm_plus = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+    dm_minus = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+    di_plus = 100 * dm_plus.ewm(span=period, adjust=False).mean()
+    di_minus = 100 * dm_minus.ewm(span=period, adjust=False).mean()
+    adx = 100 * np.abs(di_plus - di_minus).ewm(span=period, adjust=False).mean() / (di_plus + di_minus).ewm(span=period, adjust=False).mean()
+    result = pd.DataFrame({
+        'DI+': di_plus,
+        'DI-': di_minus,
+        'ADX': adx
+    })
+    return result
